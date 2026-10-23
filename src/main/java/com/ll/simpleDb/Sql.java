@@ -38,6 +38,19 @@ public class Sql {
         return this; // 현재 Sql 객체
     }
 
+    public Sql appendIn(String sqlPart, Object... values) throws SQLException {
+        if(values.length == 0) throw new IllegalArgumentException("IN 조건에는 값이 하나 이상 필요합니다.");
+
+        // 전달된 값 개수(value.length)만큼 ? 생성
+        String placeholders = String.join(", ", java.util.Collections.nCopies(values.length, "?"));
+
+        // 기존 ?를 확장된 ? 목록으로 변경
+        String expandedSql = sqlPart.replaceFirst("\\?", java.util.regex.Matcher.quoteReplacement(placeholders));
+
+        // 기존 append 재사용하기
+        return append(expandedSql, values);
+    }
+
     // 공통된 "sql실행" 작업
     private int executeUpdate() throws SQLException {
         String sql = sqlBuilder.toString();
@@ -168,9 +181,23 @@ public class Sql {
         return row.values().iterator().next();
     }
 
+    // 첫번째 행 (selectScalar)에서 숫자 하나씩만 가져오기
     public long selectLong(){
         Object value = selectScalar();
         return ((Number)value).longValue(); // DB에서 변환한 값이 항상 long임을 확신 x, Number를 사용한다.
+    }
+
+    public List<Long> selectLongs(){
+        List <Map<String, Object>> rows = selectRows();
+        List <Long> result = new ArrayList<>();
+
+        for(Map<String, Object> row : rows){
+            Object value = row.values().iterator().next();
+
+            result.add(((Number) value).longValue());
+        }
+
+        return result;
     }
 
     public String selectString(){
@@ -199,6 +226,8 @@ public class Sql {
         if (value instanceof Number number) return number.intValue()!=0; // mySql이 1또는 0을 숫자로 반환했다면 참거짓 판단
         throw new IllegalStateException("Boolean으로 변환할 수 없는 값입니다: " + value);
     }
+
+
 
 
 }
