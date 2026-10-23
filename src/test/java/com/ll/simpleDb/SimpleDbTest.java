@@ -366,61 +366,61 @@ public class SimpleDbTest {
         assertThat(foundIds).isEqualTo(Arrays.stream(ids).toList());
     }
 
-//    @Test
-//    @DisplayName("selectRows, Article")
-//    public void t015() throws SQLException {
-//        Sql sql = simpleDb.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT *
-//        FROM article
-//        ORDER BY id ASC
-//        LIMIT 3
-//        */
-//        sql.append("SELECT * FROM article ORDER BY id ASC LIMIT 3");
-//        List<Article> articleRows = sql.selectRows(Article.class);
-//
-//        IntStream.range(0, articleRows.size()).forEach(i -> {
-//            long id = i + 1;
-//
-//            Article article = articleRows.get(i);
-//
-//            assertThat(article.getId()).isEqualTo(id);
-//            assertThat(article.getTitle()).isEqualTo("제목%d".formatted(id));
-//            assertThat(article.getBody()).isEqualTo("내용%d".formatted(id));
-//            assertThat(article.getCreatedDate()).isInstanceOf(LocalDateTime.class);
-//            assertThat(article.getCreatedDate()).isNotNull();
-//            assertThat(article.getModifiedDate()).isInstanceOf(LocalDateTime.class);
-//            assertThat(article.getModifiedDate()).isNotNull();
-//            assertThat(article.isBlind()).isEqualTo(false);
-//        });
-//    }
-//
-//    @Test
-//    @DisplayName("selectRow, Article")
-//    public void t016() throws SQLException {
-//        Sql sql = simpleDb.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT *
-//        FROM article
-//        WHERE id = 1
-//        */
-//        sql.append("SELECT * FROM article WHERE id = 1");
-//        Article article = sql.selectRow(Article.class);
-//
-//        Long id = 1L;
-//
-//        assertThat(article.getId()).isEqualTo(id);
-//        assertThat(article.getTitle()).isEqualTo("제목%d".formatted(id));
-//        assertThat(article.getBody()).isEqualTo("내용%d".formatted(id));
-//        assertThat(article.getCreatedDate()).isInstanceOf(LocalDateTime.class);
-//        assertThat(article.getCreatedDate()).isNotNull();
-//        assertThat(article.getModifiedDate()).isInstanceOf(LocalDateTime.class);
-//        assertThat(article.getModifiedDate()).isNotNull();
-//        assertThat(article.isBlind()).isEqualTo(false);
-//    }
-//
+    @Test
+    @DisplayName("selectRows, Article")
+    public void t015() throws SQLException {
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT *
+        FROM article
+        ORDER BY id ASC
+        LIMIT 3
+        */
+        sql.append("SELECT * FROM article ORDER BY id ASC LIMIT 3");
+        List<Article> articleRows = sql.selectRows(Article.class);
+
+        IntStream.range(0, articleRows.size()).forEach(i -> {
+            long id = i + 1;
+
+            Article article = articleRows.get(i);
+
+            assertThat(article.getId()).isEqualTo(id);
+            assertThat(article.getTitle()).isEqualTo("제목%d".formatted(id));
+            assertThat(article.getBody()).isEqualTo("내용%d".formatted(id));
+            assertThat(article.getCreatedDate()).isInstanceOf(LocalDateTime.class);
+            assertThat(article.getCreatedDate()).isNotNull();
+            assertThat(article.getModifiedDate()).isInstanceOf(LocalDateTime.class);
+            assertThat(article.getModifiedDate()).isNotNull();
+            assertThat(article.isBlind()).isEqualTo(false);
+        });
+    }
+
+    @Test
+    @DisplayName("selectRow, Article")
+    public void t016() throws SQLException {
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT *
+        FROM article
+        WHERE id = 1
+        */
+        sql.append("SELECT * FROM article WHERE id = 1");
+        Article article = sql.selectRow(Article.class);
+
+        Long id = 1L;
+
+        assertThat(article.getId()).isEqualTo(id);
+        assertThat(article.getTitle()).isEqualTo("제목%d".formatted(id));
+        assertThat(article.getBody()).isEqualTo("내용%d".formatted(id));
+        assertThat(article.getCreatedDate()).isInstanceOf(LocalDateTime.class);
+        assertThat(article.getCreatedDate()).isNotNull();
+        assertThat(article.getModifiedDate()).isInstanceOf(LocalDateTime.class);
+        assertThat(article.getModifiedDate()).isNotNull();
+        assertThat(article.isBlind()).isEqualTo(false);
+    }
+
 //    // 테스트 메서드를 정의하고, 테스트 이름을 지정합니다.
 //    @Test
 //    @DisplayName("use in multi threading")

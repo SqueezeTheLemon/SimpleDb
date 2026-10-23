@@ -13,6 +13,9 @@ import java.util.*;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.lang.reflect.Field;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 
 public class Sql {
 
@@ -22,6 +25,42 @@ public class Sql {
 
     public Sql(SimpleDb simpleDb) {
         this.simpleDb = simpleDb;
+    }
+
+    // 제네릭 사용 -  article, member class 중 뭘 전달해도 각 객체를 반환한다.
+    private <T> T mapToObject(Map<String, Object> row, Class<T> clazz) {
+        try{
+            // 1. 전달받은 클래스의 기본 생성자 가져오기
+            Constructor <T> constructor = clazz.getDeclaredConstructor();
+            constructor.setAccessible(true);
+
+            // 2. 새로운 객체 생성 (T type)
+            T object = constructor.newInstance();
+
+            // 3. Map의 컬럼명과 값을 하나씩 확인
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                String fieldName = entry.getKey();
+                Object value = entry.getValue();
+
+                // 4. 같은 이름의 필드 찾기
+                Field field = clazz.getDeclaredField(fieldName); // DB 칼럼 이름과 동일한 이름의 필드를 찾는ㄴ다.
+                field.setAccessible(true);
+
+                // 5. 타입 변환
+                if(value instanceof Number number) {
+                    if (field.getType() == long.class || field.getType() == Long.class) value = number.longValue();
+                    else if (field.getType() == int.class || field.getType() == Integer.class)  value = number.intValue();
+                }
+
+                // 6. 객체 필드에 값 저장
+                field.set(object, value);
+            }
+            return object;
+
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("객체 매핑 실패: " + clazz.getName(), e);
+        }
+
     }
 
     // SQL 문자열을 누적해주는 append 함수 (문자열 조립)
@@ -169,6 +208,25 @@ public class Sql {
 
         // 첫번째 행만 가져온다.
         return rows.get(0);
+    }
+
+    public <T> T selectRow(Class<T> clazz){
+        Map<String, Object> row = selectRow();
+
+        if(row == null) return null;
+        return mapToObject(row, clazz);
+    }
+
+    public <T> List<T> selectRows(Class<T> clazz){
+        List<Map<String, Object>> rows = selectRows();
+        List<T> result = new ArrayList<>();
+
+        for(Map<String, Object> row : rows){
+            T object = mapToObject(row, clazz);
+            result.add(object);
+        }
+
+        return result;
     }
 
     // SELECT 결과의 첫번째 행, 첫번째 컬럼 값을 반환
