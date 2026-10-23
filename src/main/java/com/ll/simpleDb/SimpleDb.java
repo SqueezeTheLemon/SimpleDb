@@ -44,6 +44,40 @@ public class SimpleDb {
         }
     }
 
+    private final ThreadLocal<Connection> transactionConnection = new ThreadLocal<>(); // 스레드마다 별도의 값을 저장할 수 있는 도구
+
+    Connection getConnection() throws SQLException {
+        Connection conn = transactionConnection.get();
+
+        // 트랜잭션이 진행 중이라면 기존 Connection 재사용
+        if (conn != null) {
+            return conn;
+        }
+
+        // 트랜잭션이 없다면 새로운 Connection 생성
+        return createConnection();
+    }
+
+    // sql이 connection을 직접 닫아도 되는지 판단
+    boolean isInTransaction() {
+        return transactionConnection.get() != null;
+    }
+
+    // 트랜잭션 중이면 connection 유지 / 트랜잭션 아니면 connection 종료
+    void closeConnectionIfNeeded(Connection conn) {
+        if (conn == null) {
+            return;
+        }
+
+        if (!isInTransaction()) {
+            try {
+                conn.close();
+            } catch (SQLException e) {
+                throw new RuntimeException("Connection 종료 실패", e);
+            }
+        }
+    }
+
     // SQL 객체 생성
     public Sql genSql() {
         return new Sql(this);
@@ -57,18 +91,13 @@ public class SimpleDb {
     }
 
 
-
-
-
     public void run(String sql, Object... params) throws SQLException {
-        System.out.println("[SimpleDb.run] " + sql);
 
         if (devMode) {
             System.out.println("SQL: " +  sql);
         }
-
+        Connection connection = getConnection();
         try (
-                Connection connection = createConnection();
                 PreparedStatement pstmt = connection.prepareStatement(sql);
         ){
 
@@ -81,7 +110,81 @@ public class SimpleDb {
         catch (SQLException e){
             throw new RuntimeException("SQL 실행 실패!", e);
         }
+        finally {
+            closeConnectionIfNeeded(connection);
+        }
     }
+
+    public void close() {
+        Connection conn = transactionConnection.get();
+
+        if (conn == null) {
+            return;
+        }
+
+        try {
+            conn.close();
+        } catch (SQLException e) {
+            throw new RuntimeException("Connection 종료 실패", e);
+        } finally {
+            transactionConnection.remove();
+        }
+    }
+
+    public void startTransaction() throws SQLException {
+        if (isInTransaction()) throw new IllegalStateException("이미 트랜잭션이 진행 중입니다.");
+
+        Connection conn = createConnection();
+
+        try {
+            conn.setAutoCommit(false); // 직접 commit 호출 전까진 변경사항 확정 x
+            transactionConnection.set(conn);
+        } catch (SQLException e) {
+            try {
+                conn.close();
+            } catch (SQLException closeError) {
+                e.addSuppressed(closeError);
+            }
+
+            throw new RuntimeException("트랜잭션 시작 실패", e);
+        }
+
+    }
+
+    public void commit() {
+        Connection conn = transactionConnection.get();
+
+        if (conn == null) {
+            throw new IllegalStateException("진행 중인 트랜잭션이 없습니다.");
+        }
+
+        try {
+            conn.commit();
+        } catch (SQLException e) {
+            throw new RuntimeException("커밋 실패", e);
+        } finally {
+            close();
+        }
+    }
+
+    public void rollback() {
+        Connection conn = transactionConnection.get();
+
+        if (conn == null) {
+            throw new IllegalStateException("진행 중인 트랜잭션이 없습니다.");
+        }
+
+        try {
+            conn.rollback();
+        } catch (SQLException e) {
+            throw new RuntimeException("롤백 실패", e);
+        } finally {
+            close();
+        }
+    }
+
+
+
 
 
 }

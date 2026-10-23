@@ -91,23 +91,29 @@ public class Sql {
     }
 
     // 공통된 "sql실행" 작업
+
     private int executeUpdate() throws SQLException {
         String sql = sqlBuilder.toString();
         simpleDb.printSql(sql);
 
-        try(
-                Connection conn = simpleDb.createConnection();
+        Connection conn = simpleDb.getConnection();
+
+        try (
                 PreparedStatement pstmt = conn.prepareStatement(sql)
-                ){
-            for(int i = 0; i < params.size(); i++){
+        ) {
+            for (int i = 0; i < params.size(); i++) {
                 pstmt.setObject(i + 1, params.get(i));
             }
+
             return pstmt.executeUpdate();
-        }
-        catch (SQLException e){
+
+        } catch (SQLException e) {
             throw new RuntimeException("SQL 실행 실패", e);
+        } finally {
+            simpleDb.closeConnectionIfNeeded(conn);
         }
     }
+
 
     public int update() throws SQLException {
         return executeUpdate();
@@ -118,48 +124,51 @@ public class Sql {
     }
 
     // 자동 생성된 id를 가져오기 - 데이터 추가 및 id 반환
+
     public long insert() throws SQLException {
         String sql = sqlBuilder.toString();
-        System.out.println("실행 SQL: [" + sql + "]");
-        System.out.println("파라미터: " + params);
-
         simpleDb.printSql(sql);
 
-        try(
-                Connection conn = simpleDb.createConnection();
-                PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
-                ){
-            for(int i = 0; i < params.size(); i++){
+        Connection conn = simpleDb.getConnection();
+
+        try (
+                PreparedStatement pstmt = conn.prepareStatement(
+                        sql,
+                        Statement.RETURN_GENERATED_KEYS
+                )
+        ) {
+            for (int i = 0; i < params.size(); i++) {
                 pstmt.setObject(i + 1, params.get(i));
             }
+
             pstmt.executeUpdate();
 
-            try (ResultSet rs = pstmt.getGeneratedKeys()){
-                if(rs.next()){
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                if (rs.next()) {
                     return rs.getLong(1);
                 }
             }
 
             throw new IllegalStateException("생성된 ID가 없습니다.");
 
+        } catch (SQLException e) {
+            throw new RuntimeException("INSERT 실행 실패", e);
+        } finally {
+            simpleDb.closeConnectionIfNeeded(conn);
         }
-        catch (SQLException e){
-            throw new RuntimeException("INSERT 실행 실패! ", e);
-        }
-
     }
 
-    public List<Map<String, Object>> selectRows(){
+
+    public List<Map<String, Object>> selectRows() throws SQLException {
         // 1. 지금까지 조립한 sql 가져오기
         String sql = sqlBuilder.toString();
         simpleDb.printSql(sql);
 
         // 2. ResultSet(최종 결과를 저장할 리스트) 생성
         List <Map<String, Object>> rows = new ArrayList<>();
-
+        Connection conn = simpleDb.getConnection();
 
         try(
-                Connection conn = simpleDb.createConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql);
 
                 ) {
@@ -197,11 +206,13 @@ public class Sql {
             return rows;
 
         } catch (SQLException e) {
-            throw new RuntimeException("SELECT 실행 실패!", e);
+            throw new RuntimeException("SELECT 실행 실패", e);
+        } finally {
+            simpleDb.closeConnectionIfNeeded(conn);
         }
     }
 
-    public Map<String, Object> selectRow(){
+    public Map<String, Object> selectRow() throws SQLException {
         // selectRows() 결과에서
         List <Map<String, Object>> rows = selectRows();
         if(rows.isEmpty()) return null;
@@ -210,14 +221,14 @@ public class Sql {
         return rows.get(0);
     }
 
-    public <T> T selectRow(Class<T> clazz){
+    public <T> T selectRow(Class<T> clazz) throws SQLException {
         Map<String, Object> row = selectRow();
 
         if(row == null) return null;
         return mapToObject(row, clazz);
     }
 
-    public <T> List<T> selectRows(Class<T> clazz){
+    public <T> List<T> selectRows(Class<T> clazz) throws SQLException {
         List<Map<String, Object>> rows = selectRows();
         List<T> result = new ArrayList<>();
 
@@ -230,7 +241,7 @@ public class Sql {
     }
 
     // SELECT 결과의 첫번째 행, 첫번째 컬럼 값을 반환
-    private Object selectScalar(){
+    private Object selectScalar() throws SQLException {
         Map<String, Object> row = selectRow();
 
         if(row == null || row.isEmpty()) return null;
@@ -240,12 +251,12 @@ public class Sql {
     }
 
     // 첫번째 행 (selectScalar)에서 숫자 하나씩만 가져오기
-    public long selectLong(){
+    public long selectLong() throws SQLException {
         Object value = selectScalar();
         return ((Number)value).longValue(); // DB에서 변환한 값이 항상 long임을 확신 x, Number를 사용한다.
     }
 
-    public List<Long> selectLongs(){
+    public List<Long> selectLongs() throws SQLException {
         List <Map<String, Object>> rows = selectRows();
         List <Long> result = new ArrayList<>();
 
@@ -258,14 +269,14 @@ public class Sql {
         return result;
     }
 
-    public String selectString(){
+    public String selectString() throws SQLException {
         Object value = selectScalar();
 
         if(value == null) return null;
         return value.toString(); // 문자열 객체가 아니어도 문자열 형태로 변환한다.
     }
 
-    public LocalDateTime selectDatetime(){
+    public LocalDateTime selectDatetime() throws SQLException {
         Object value = selectScalar();
 
         if(value == null) return null;
@@ -277,13 +288,16 @@ public class Sql {
         throw new IllegalStateException("LocalDateTime으로 변환할 수 없는 값입니다: " + value);
     }
 
-    public boolean selectBoolean(){
+    public boolean selectBoolean() throws SQLException {
         Object value = selectScalar();
 
         if (value instanceof Boolean bool) return bool;
         if (value instanceof Number number) return number.intValue()!=0; // mySql이 1또는 0을 숫자로 반환했다면 참거짓 판단
         throw new IllegalStateException("Boolean으로 변환할 수 없는 값입니다: " + value);
     }
+
+    // 트랜잭션 중이면 connection 유지 / 트랜잭션 아니면 connection 종료
+
 
 
 
